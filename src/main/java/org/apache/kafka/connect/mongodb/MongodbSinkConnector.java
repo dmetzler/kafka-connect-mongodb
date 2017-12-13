@@ -1,5 +1,19 @@
 package org.apache.kafka.connect.mongodb;
 
+import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.BULK_SIZE;
+import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.COLLECTIONS;
+import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.DATABASE;
+import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.HOST;
+import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.PORT;
+import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.TOPICS;
+import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.URI;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.utils.AppInfoParser;
 import org.apache.kafka.connect.connector.Task;
@@ -10,15 +24,6 @@ import org.apache.kafka.connect.utils.LogUtils;
 import org.apache.kafka.connect.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.*;
-import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.HOST;
-import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.PORT;
-import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.BULK_SIZE;
-import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.TOPICS;
-import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.URI;
-import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.DATABASE;
-import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.COLLECTIONS;
 
 /**
  * MongodbSinkConnector implement the Connector interface to send Kafka
@@ -63,11 +68,11 @@ public class MongodbSinkConnector extends SinkConnector {
             if (host == null || host.isEmpty()){
                 throw new ConnectException("Missing " + HOST + " config");
             }
-        	
-	        port = map.get(PORT);
-	        if (port == null || port.isEmpty()){
-	            throw new ConnectException("Missing " + PORT + " config");
-	        }
+
+            port = map.get(PORT);
+            if (port == null || port.isEmpty()){
+                throw new ConnectException("Missing " + PORT + " config");
+            }
         }
         bulkSize = map.get(BULK_SIZE);
         if (bulkSize == null || bulkSize.isEmpty())
@@ -117,7 +122,7 @@ public class MongodbSinkConnector extends SinkConnector {
                 config.put(HOST, host);
             }
             if(port!=null){
-            	config.put(PORT, port);
+                config.put(PORT, port);
             }
             config.put(BULK_SIZE, bulkSize);
             config.put(DATABASE, database);
@@ -138,6 +143,6 @@ public class MongodbSinkConnector extends SinkConnector {
 
     @Override
     public ConfigDef config () {
-        return null;
+        return MongodbSinkConfig.config;
     }
 }
