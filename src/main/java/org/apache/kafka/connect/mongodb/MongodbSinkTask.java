@@ -142,7 +142,9 @@ public class MongodbSinkTask extends SinkTask {
 
                     if("d".equals(jsonMap.get("operation"))) {
                         bulks.get(topic).add(new DeleteOneModel<Document>(Filters.eq("_id", doc.getObjectId("_id"))));
+                        log.trace("Adding to bulk: Remove {}", doc.toString());
                     } else {
+                        log.trace("Adding to bulk: Upsert {}", doc.toString());
                         bulks.get(topic).add(new UpdateOneModel<Document>(Filters.eq("_id", doc.getObjectId("_id")),
                                 new Document("$set", doc), new UpdateOptions().upsert(true)));
                     }
