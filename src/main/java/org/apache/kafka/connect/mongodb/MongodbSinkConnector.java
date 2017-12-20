@@ -5,6 +5,7 @@ import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.COLLECTIONS;
 import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.DATABASE;
 import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.HOST;
 import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.PORT;
+import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.REPLAY_OPLOG;
 import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.TOPICS;
 import static org.apache.kafka.connect.mongodb.MongodbSinkConfig.URI;
 
@@ -41,6 +42,8 @@ public class MongodbSinkConnector extends SinkConnector {
     private String database;
     private String collections;
     private String topics;
+
+    private String replayOplog;
 
     /**
      * Get the version of this connector.
@@ -81,6 +84,7 @@ public class MongodbSinkConnector extends SinkConnector {
         database = map.get(DATABASE);
         collections = map.get(COLLECTIONS);
         topics = map.get(TOPICS);
+        replayOplog = map.get(REPLAY_OPLOG);
 
         if (collections.split(",").length != topics.split(",").length) {
             throw new ConnectException("The number of topics should be the same as the number of collections");
@@ -126,6 +130,7 @@ public class MongodbSinkConnector extends SinkConnector {
             }
             config.put(BULK_SIZE, bulkSize);
             config.put(DATABASE, database);
+            config.put(REPLAY_OPLOG, replayOplog);
             config.put(COLLECTIONS, StringUtils.join(dbsGrouped.get(i), ","));
             config.put(TOPICS, StringUtils.join(topicsGrouped.get(i), ","));
             configs.add(config);

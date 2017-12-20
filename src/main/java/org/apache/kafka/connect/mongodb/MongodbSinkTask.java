@@ -22,14 +22,14 @@ import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.DeleteOneModel;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
 
 /**
- * MongodbSinkTask is a Task that takes records loaded from Kafka and sends them to
- * mongodb.
+ * MongodbSinkTask is a Task that takes records loaded from Kafka and sends them to mongodb.
  *
  * @author Andrea Patelli
  */
@@ -37,16 +37,26 @@ public class MongodbSinkTask extends SinkTask {
     private final static Logger log = LoggerFactory.getLogger(MongodbSinkTask.class);
 
     private String uri;
+
     private Integer port;
+
     private String host;
+
     private Integer bulkSize;
+
     private String collections;
+
     private String database;
+
     private String topics;
+
     private MongoClient mongoClient;
-    
+
     private Map<String, MongoCollection<Document>> mapping;
+
     private MongoDatabase db;
+
+    private boolean replayLog;
 
     @Override
     public String version() {
@@ -60,13 +70,13 @@ public class MongodbSinkTask extends SinkTask {
      */
     @Override
     public void start(Map<String, String> map) {
-    	if(map.containsKey(MongodbSinkConfig.PORT)){
-	        try {
-	            port = Integer.parseInt(map.get(MongodbSinkConfig.PORT));
-	        } catch (Exception e) {
-	            throw new ConnectException("Setting " + MongodbSinkConfig.PORT + " should be an integer");
-	        }
-    	}
+        if (map.containsKey(MongodbSinkConfig.PORT)) {
+            try {
+                port = Integer.parseInt(map.get(MongodbSinkConfig.PORT));
+            } catch (Exception e) {
+                throw new ConnectException("Setting " + MongodbSinkConfig.PORT + " should be an integer");
+            }
+        }
 
         try {
             bulkSize = Integer.parseInt(map.get(MongodbSinkConfig.BULK_SIZE));
@@ -79,10 +89,11 @@ public class MongodbSinkTask extends SinkTask {
         uri = map.get(MongodbSinkConfig.URI);
         collections = map.get(MongodbSinkConfig.COLLECTIONS);
         topics = map.get(MongodbSinkConfig.TOPICS);
+        replayLog = "true".equals(map.get(MongodbSinkConfig.REPLAY_OPLOG));
 
         List<String> collectionsList = Arrays.asList(collections.split(","));
         List<String> topicsList = Arrays.asList(topics.split(","));
-        
+
         createMongoClient();
         db = mongoClient.getDatabase(database);
 
@@ -94,16 +105,15 @@ public class MongodbSinkTask extends SinkTask {
             mapping.put(topic, db.getCollection(collection));
         }
     }
-    
-    private MongoClient createMongoClient(){
-    	if(uri!=null){
-    		final MongoClientURI mongoClientURI = new MongoClientURI(uri);
-    		mongoClient = new MongoClient(mongoClientURI);
-    	}
-    	else{
-    		mongoClient = new MongoClient(host, port);
-    	}
-		return mongoClient;
+
+    private MongoClient createMongoClient() {
+        if (uri != null) {
+            final MongoClientURI mongoClientURI = new MongoClientURI(uri);
+            mongoClient = new MongoClient(mongoClientURI);
+        } else {
+            mongoClient = new MongoClient(host, port);
+        }
+        return mongoClient;
     }
 
     /**
@@ -126,14 +136,23 @@ public class MongodbSinkTask extends SinkTask {
                     bulks.put(topic, new ArrayList<WriteModel<Document>>());
                 }
 
-                Document newDocument = new Document(jsonMap)
-                        .append("_id", record.kafkaOffset());
+                if (replayLog) {
+                    Map<String, Object> docMap =SchemaUtils.toJsonMap(((Struct)record.value()).getStruct("object"));
+                    Document doc = new Document(docMap);
 
-                log.trace("Adding to bulk: {}", newDocument.toString());
-                bulks.get(topic).add(new UpdateOneModel<Document>(
-                        Filters.eq("_id", record.kafkaOffset()),
-                        new Document("$set", newDocument),
-                        new UpdateOptions().upsert(true)));
+                    if("d".equals(jsonMap.get("operation"))) {
+                        bulks.get(topic).add(new DeleteOneModel<Document>(Filters.eq("_id", doc.getObjectId("_id"))));
+                    } else {
+                        bulks.get(topic).add(new UpdateOneModel<Document>(Filters.eq("_id", doc.getObjectId("_id")),
+                                new Document("$set", doc), new UpdateOptions().upsert(true)));
+                    }
+                } else {
+                    Document newDocument = new Document(jsonMap).append("_id", record.kafkaOffset());
+
+                    log.trace("Adding to bulk: {}", newDocument.toString());
+                    bulks.get(topic).add(new UpdateOneModel<Document>(Filters.eq("_id", record.kafkaOffset()),
+                            new Document("$set", newDocument), new UpdateOptions().upsert(true)));
+                }
             }
             i--;
             log.trace("Executing bulk");
@@ -154,8 +173,8 @@ public class MongodbSinkTask extends SinkTask {
 
     @Override
     public void stop() {
-    	if(mongoClient != null){
-    		mongoClient.close();
-    	}
+        if (mongoClient != null) {
+            mongoClient.close();
+        }
     }
 }

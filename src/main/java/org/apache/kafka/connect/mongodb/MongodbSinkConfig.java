@@ -1,11 +1,11 @@
 package org.apache.kafka.connect.mongodb;
 
+import java.util.Map;
+
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
-import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Importance;
-
-import java.util.Map;
+import org.apache.kafka.common.config.ConfigDef.Type;
 
 /**
  * @author Xu Jingxin
@@ -25,15 +25,18 @@ public class MongodbSinkConfig extends AbstractConfig {
     private static final String DATABASE_DOC = "Database of mongodb";
     public static final String COLLECTIONS = "mongodb.collections";
     private static final String COLLECTIONS_DOC = "Collections of mongodb";
+    public static final String REPLAY_OPLOG = "replayoplog";
+    private static final String REPLAY_OPLOG_DOC = "Source document are seen as an oplog and replayed";
 
     public static ConfigDef config = new ConfigDef()
-    		.define(URI, Type.STRING, Importance.HIGH, URI_DOC)
+            .define(URI, Type.STRING, Importance.HIGH, URI_DOC)
             .define(HOST, Type.STRING, Importance.HIGH, HOST_DOC)
             .define(PORT, Type.INT, Importance.HIGH, PORT_DOC)
             .define(BULK_SIZE, Type.INT, Importance.HIGH, BULK_SIZE_DOC)
             .define(TOPICS, Type.STRING, Importance.LOW, TOPIC_PREFIX_DOC)
             .define(DATABASE, Type.STRING, Importance.LOW, DATABASE_DOC)
-            .define(COLLECTIONS, Type.STRING, Importance.LOW, COLLECTIONS_DOC);
+            .define(COLLECTIONS, Type.STRING, Importance.LOW, COLLECTIONS_DOC)
+            .define(REPLAY_OPLOG, Type.STRING, Importance.LOW, REPLAY_OPLOG_DOC);
 
     public MongodbSinkConfig(Map<String, String> props) {
         super(config, props);
