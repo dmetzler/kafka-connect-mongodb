@@ -137,10 +137,11 @@ public class MongodbSinkTask extends SinkTask {
                 }
 
                 if (replayLog) {
-                    ((Struct)record.value()).getString("object");
-                    Document doc = Document.parse(((Struct)record.value()).getString("object"));
+                    String docAsString = ((Struct) record.value()).getString("object");
+                    log.trace("Handling record: {}", docAsString);
+                    Document doc = Document.parse(docAsString);
 
-                    if("d".equals(jsonMap.get("operation"))) {
+                    if ("d".equals(jsonMap.get("operation"))) {
                         bulks.get(topic).add(new DeleteOneModel<Document>(Filters.eq("_id", doc.getObjectId("_id"))));
                         log.trace("Adding to bulk: Remove {}", doc.toString());
                     } else {
