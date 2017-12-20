@@ -137,8 +137,8 @@ public class MongodbSinkTask extends SinkTask {
                 }
 
                 if (replayLog) {
-                    Map<String, Object> docMap =SchemaUtils.toJsonMap(((Struct)record.value()).getStruct("object"));
-                    Document doc = new Document(docMap);
+                    ((Struct)record.value()).getString("object");
+                    Document doc = Document.parse(((Struct)record.value()).getString("object"));
 
                     if("d".equals(jsonMap.get("operation"))) {
                         bulks.get(topic).add(new DeleteOneModel<Document>(Filters.eq("_id", doc.getObjectId("_id"))));
