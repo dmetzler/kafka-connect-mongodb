@@ -27,7 +27,8 @@ public class JsonStructConverter implements StructConverter {
         messageStruct.put("database", document.get("ns"));
 
         if("u".equals(op)) {
-            messageStruct.put("oid", document.get("o2"));
+            Document oid = (Document) document.get("o2");
+            messageStruct.put("oid", oid.getObjectId("_id").toString());
         }
 
         final Document modifiedDocument = (Document) document.get("o");

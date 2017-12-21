@@ -26,21 +26,31 @@ import com.mongodb.client.model.Projections;
  */
 public class DatabaseReader implements Runnable {
     private final Logger log = LoggerFactory.getLogger(DatabaseReader.class);
+
     private final String host;
+
     private final Integer port;
+
     private final String uri;
+
     private final String db;
+
     private final Integer batchSize;
+
     private final String start;
+
     private MongoClient mongoClient;
+
     private int page = 0;
 
     private ConcurrentLinkedQueue<Document> messages;
 
     private MongoCollection<Document> oplog;
+
     private Bson query;
 
-    public DatabaseReader(String uri, String db, String start, Integer batchSize, ConcurrentLinkedQueue<Document> messages) {
+    public DatabaseReader(String uri, String db, String start, Integer batchSize,
+            ConcurrentLinkedQueue<Document> messages) {
         this.uri = uri;
         this.host = null;
         this.port = null;
@@ -55,7 +65,8 @@ public class DatabaseReader implements Runnable {
         }
     }
 
-    public DatabaseReader(String host, Integer port, String db, String start, Integer batchSize, ConcurrentLinkedQueue<Document> messages) {
+    public DatabaseReader(String host, Integer port, String db, String start, Integer batchSize,
+            ConcurrentLinkedQueue<Document> messages) {
         this.uri = null;
         this.host = host;
         this.port = port;
@@ -72,8 +83,8 @@ public class DatabaseReader implements Runnable {
 
     @Override
     public void run() {
-        while(true){
-            if(messages.isEmpty()){
+        while (true) {
+            if (messages.isEmpty()) {
                 log.debug("Query starting in page {}.", page);
                 final FindIterable<Document> documents = find(page);
                 try {
@@ -81,12 +92,11 @@ public class DatabaseReader implements Runnable {
                         log.trace(document.toString());
                         messages.add(document);
                     }
-                } catch(Exception e) {
+                } catch (Exception e) {
                     log.error("Closed connection", e);
                 }
                 page++;
-            }
-            else{
+            } else {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
@@ -96,31 +106,29 @@ public class DatabaseReader implements Runnable {
         }
     }
 
-    private FindIterable<Document> find(int page){
-        final FindIterable<Document> documents = oplog
-                .find(query)
-                .sort(new Document("$natural", 1))
-                .skip(page * batchSize)
-                .limit(batchSize)
-                .projection(Projections.include("ts", "op", "ns", "o"))
-                .cursorType(CursorType.TailableAwait);
+    private FindIterable<Document> find(int page) {
+        final FindIterable<Document> documents = oplog.find(query)
+                                                      .sort(new Document("$natural", 1))
+                                                      .skip(page * batchSize)
+                                                      .limit(batchSize)
+                                                      .projection(Projections.include("ts", "op", "ns", "o", "o2"))
+                                                      .cursorType(CursorType.TailableAwait);
         return documents;
     }
 
     @Override
-    public void finalize(){
-        if(mongoClient != null){
+    public void finalize() {
+        if (mongoClient != null) {
             mongoClient.close();
         }
     }
 
-    private MongoClient createMongoClient(){
+    private MongoClient createMongoClient() {
         MongoClient mongoClient;
-        if(uri != null){
+        if (uri != null) {
             final MongoClientURI mongoClientURI = new MongoClientURI(uri);
             mongoClient = new MongoClient(mongoClientURI);
-        }
-        else{
+        } else {
             mongoClient = new MongoClient(host, port);
         }
         return mongoClient;
@@ -157,22 +165,15 @@ public class DatabaseReader implements Runnable {
         // timestamps are used as offsets, saved as a concatenation of seconds and order
         Integer timestamp = 0;
         Integer order = 0;
-        if(!start.equals("0")){
+        if (!start.equals("0")) {
             final String[] splitted = start.split("_");
             timestamp = Integer.valueOf(splitted[0]);
             order = Integer.valueOf(splitted[1]);
         }
 
-        Bson query = Filters.and(
-                Filters.exists("fromMigrate", false),
+        Bson query = Filters.and(Filters.exists("fromMigrate", false),
                 Filters.gt("ts", new BSONTimestamp(timestamp, order)),
-                Filters.or(
-                        Filters.eq("op", "i"),
-                        Filters.eq("op", "u"),
-                        Filters.eq("op", "d")
-                ),
-                Filters.eq("ns", db)
-        );
+                Filters.or(Filters.eq("op", "i"), Filters.eq("op", "u"), Filters.eq("op", "d")), Filters.eq("ns", db));
 
         return query;
     }

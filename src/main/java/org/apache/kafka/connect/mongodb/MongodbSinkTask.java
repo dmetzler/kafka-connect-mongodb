@@ -177,6 +177,11 @@ public class MongodbSinkTask extends SinkTask {
                     case UPDATE:
                         log.trace("Adding to bulk: Update {}", doc.toString());
                         String id = structRecord.getString("oid");
+                        if(id ==null || !ObjectId.isValid(id)) {
+                            log.error("Error when updating {}", doc.toString());
+                            log.error("   ObjectId {} is not valid", id);
+                            break;
+                        }
                         bulks.get(topic).add(new UpdateOneModel<Document>(Filters.eq("_id", new ObjectId(id)),
                                 doc, new UpdateOptions().upsert(true)));
                     default:
