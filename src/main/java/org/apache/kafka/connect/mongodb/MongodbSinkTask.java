@@ -15,6 +15,7 @@ import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
 import org.apache.kafka.connect.utils.SchemaUtils;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +25,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.DeleteOneModel;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.InsertOneModel;
 import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
@@ -57,6 +59,27 @@ public class MongodbSinkTask extends SinkTask {
     private MongoDatabase db;
 
     private boolean replayLog;
+
+    private enum Operation {
+        INSERT,
+        UPDATE,
+        DELETE;
+
+        private String op;
+
+        static public Operation fromString(String op) {
+            if("u".equals(op)) {
+                return UPDATE;
+            } else if("i".equals(op)) {
+                return INSERT;
+            } else if("d".equals(op)) {
+                return DELETE;
+            } else {
+                throw new IllegalArgumentException("Unhandled operation");
+            }
+        }
+
+    }
 
     @Override
     public String version() {
@@ -137,18 +160,29 @@ public class MongodbSinkTask extends SinkTask {
                 }
 
                 if (replayLog) {
-                    String docAsString = ((Struct) record.value()).getString("object");
+                    Struct structRecord = (Struct) record.value();
+
+                    String docAsString = structRecord.getString("object");
                     log.trace("Handling record: {}", docAsString);
                     Document doc = Document.parse(docAsString);
 
-                    if ("d".equals(jsonMap.get("operation"))) {
+                    switch (Operation.fromString((String) jsonMap.get("operation"))) {
+                    case DELETE:
                         bulks.get(topic).add(new DeleteOneModel<Document>(Filters.eq("_id", doc.getObjectId("_id"))));
                         log.trace("Adding to bulk: Remove {}", doc.toString());
-                    } else {
-                        log.trace("Adding to bulk: Upsert {}", doc.toString());
-                        bulks.get(topic).add(new UpdateOneModel<Document>(Filters.eq("_id", doc.getObjectId("_id")),
-                                new Document("$set", doc), new UpdateOptions().upsert(true)));
+                        break;
+                    case INSERT:
+                        log.trace("Adding to bulk: Insert {}", doc.toString());
+                        bulks.get(topic).add(new InsertOneModel<Document>(doc));
+                    case UPDATE:
+                        log.trace("Adding to bulk: Update {}", doc.toString());
+                        String id = structRecord.getString("oid");
+                        bulks.get(topic).add(new UpdateOneModel<Document>(Filters.eq("_id", new ObjectId(id)),
+                                doc, new UpdateOptions().upsert(true)));
+                    default:
+                        break;
                     }
+
                 } else {
                     Document newDocument = new Document(jsonMap).append("_id", record.kafkaOffset());
 

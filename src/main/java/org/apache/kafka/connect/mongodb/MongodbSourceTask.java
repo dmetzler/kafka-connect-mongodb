@@ -57,14 +57,14 @@ public class MongodbSourceTask extends SourceTask {
      */
     @Override
     public void start(Map<String, String> map) {
-    	if(map.containsKey(MongodbSourceConfig.PORT)){
-	        try {
-	            port = Integer.parseInt(map.get(MongodbSourceConfig.PORT));
-	        } catch (Exception e) {
-	            throw new ConnectException(MongodbSourceConfig.PORT + " config should be an Integer");
-	        }
-    	}
-    	
+        if(map.containsKey(MongodbSourceConfig.PORT)){
+            try {
+                port = Integer.parseInt(map.get(MongodbSourceConfig.PORT));
+            } catch (Exception e) {
+                throw new ConnectException(MongodbSourceConfig.PORT + " config should be an Integer");
+            }
+        }
+
         try {
             batchSize = Integer.parseInt(map.get(MongodbSourceConfig.BATCH_SIZE));
         } catch (Exception e) {
@@ -75,18 +75,18 @@ public class MongodbSourceTask extends SourceTask {
         topicPrefix = map.get(MongodbSourceConfig.TOPIC_PREFIX);
         uri = map.get(MongodbSourceConfig.URI);
         host = map.get(MongodbSourceConfig.HOST);
-        
+
         try{
             String structConverterClass = map.get(MongodbSourceConfig.CONVERTER_CLASS);
             if(structConverterClass == null || structConverterClass.isEmpty()){
-            	structConverterClass = StringStructConverter.class.getName();
+                structConverterClass = StringStructConverter.class.getName();
             }
             structConverter = (StructConverter) Class.forName(structConverterClass).newInstance();
         }
         catch(Exception e){
-        	throw new ConnectException(MongodbSourceConfig.CONVERTER_CLASS + " config should be a class of type StructConverter");
+            throw new ConnectException(MongodbSourceConfig.CONVERTER_CLASS + " config should be a class of type StructConverter");
         }
-        
+
         databases = Arrays.asList(map.get(MongodbSourceConfig.DATABASES).split(","));
 
         log.trace("Creating schema");
@@ -105,17 +105,18 @@ public class MongodbSourceTask extends SourceTask {
                                 .field("order", Schema.OPTIONAL_INT32_SCHEMA)
                                 .field("operation", Schema.OPTIONAL_STRING_SCHEMA)
                                 .field("database", Schema.OPTIONAL_STRING_SCHEMA)
+                                .field("oid", Schema.OPTIONAL_STRING_SCHEMA)
                                 .field("object", Schema.OPTIONAL_STRING_SCHEMA)
                                 .build());
         }
 
         loadOffsets();
-        
+
         if(uri != null){
-        	reader = new MongodbReader(uri, databases, batchSize, offsets);
+            reader = new MongodbReader(uri, databases, batchSize, offsets);
         }
         else{
-        	reader = new MongodbReader(host, port, databases, batchSize, offsets);
+            reader = new MongodbReader(host, port, databases, batchSize, offsets);
         }
         reader.run();
     }
@@ -130,7 +131,7 @@ public class MongodbSourceTask extends SourceTask {
     public List<SourceRecord> poll() throws InterruptException {
         List<SourceRecord> records = new ArrayList<>();
         while (!reader.isEmpty()) {
-        	Document message = reader.pool();
+            Document message = reader.pool();
             Struct messageStruct = getStruct(message);
             String topic = getTopic(message);
             String db = getDB(message);
@@ -148,9 +149,9 @@ public class MongodbSourceTask extends SourceTask {
      */
     @Override
     public void stop() {
-    	if(reader != null){
-    		reader.stop();
-    	}
+        if(reader != null){
+            reader.stop();
+        }
     }
 
     /**
@@ -203,8 +204,8 @@ public class MongodbSourceTask extends SourceTask {
      * @return message formatted as a Struct
      */
     private Struct getStruct(Document message) {
-    	final Schema schema = schemas.get(getDB(message).replaceAll("[\\s.]", "_"));
-    	return structConverter.toStruct(message, schema);
+        final Schema schema = schemas.get(getDB(message).replaceAll("[\\s.]", "_"));
+        return structConverter.toStruct(message, schema);
     }
 
     /**
